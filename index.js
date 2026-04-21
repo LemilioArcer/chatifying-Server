@@ -1,29 +1,74 @@
 import express from 'express';
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
+import pg from 'pg';
 
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
-    cors: 'http://localhost:5174/'
+  connectionStateRecovery: {}, 
+  cors: {
+    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
 });
+
+const pool = new pg.Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
+
+await pool.query(`
+  CREATE TABLE IF NOT EXISTS messages (
+      id SERIAL PRIMARY KEY,
+      client_offset TEXT UNIQUE,
+      content TEXT
+  );
+`);
 
 app.get('/', (req, res) => {
-  res.send('<h1>Hello world 3c</h1>');
+  res.send('<h1>Chatify Server Online</h1>');
 });
 
-io.on('connection', (socket) => {
-  console.log('a user connected', socket.id);
+io.on('connection', async (socket) => {
+  console.log('Cliente conectado:', socket.id);
 
-  socket.on('chat message', (msg) => {
-    console.log('message: ' + msg);
+  if (!socket.recovered) {
+    try {
+      const result = await pool.query(
+        'SELECT id, content FROM messages WHERE id > $1 ORDER BY id',
+        [socket.handshake.auth.serverOffset || 0]
+      );
+      
+      for (const row of result.rows) {
+        socket.emit('chat message', row.content, row.id);
+      }
+    } catch (e) {
+      console.error('Error recuperando mensajes:', e);
+    }
+  }
+  
+  socket.on('chat message', async (msg) => {
+    try {
+      const result = await pool.query(
+        'INSERT INTO messages (content) VALUES ($1) RETURNING id',
+        [msg]
+      );
+      io.emit('chat message', msg, result.rows[0].id);
+    } catch (e) {
+      console.error('Error insertando mensaje:', e);
+    }
   });
 
   socket.on('disconnect', () => {
-    console.log('User disconnected', socket.id);
+    console.log('Cliente desconectado');
   });
 });
 
-server.listen(3000, () => {
-  console.log('server running at http://localhost:3000');
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Servidor corriendo en el puerto ${PORT}`);
 });
