@@ -10,7 +10,7 @@ const server = createServer(app);
 const io = new Server(server, {
   connectionStateRecovery: {}, 
   cors: {
-    origin: 'https://chatifyingapp.vercel.app', 
+    origin: ['https://chatifyingapp.vercel.app', 'http://localhost:5173'], 
     methods: ['GET', 'POST'],
     credentials: true
   }
