@@ -10,7 +10,7 @@ const server = createServer(app);
 const io = new Server(server, {
   connectionStateRecovery: {}, 
   cors: {
-    origin: process.env.CL_URL || 'http://localhost:5173', 
+    origin: process.env.CLIENT_URL || 'http://localhost:5173', 
     methods: ['GET', 'POST'],
     credentials: true
   }
