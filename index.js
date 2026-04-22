@@ -10,7 +10,7 @@ const server = createServer(app);
 const io = new Server(server, {
   connectionStateRecovery: {}, 
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:5173', 
+    origin: 'https://chatifyingapp.vercel.app', 
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -19,7 +19,7 @@ const io = new Server(server, {
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
-    rejectUnauthorized: false
+    rejectUnauthorized: false 
   }
 });
 
@@ -81,5 +81,5 @@ io.on('connection', async (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Servidor Chatify corriendo en: http://localhost:${PORT}`);
+  console.log(`🚀 Servidor Chatify corriendo en el puerto: ${PORT}`);
 });
