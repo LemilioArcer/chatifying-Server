@@ -1,3 +1,4 @@
+import 'dotenv/config'; 
 import express from 'express';
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
@@ -5,10 +6,11 @@ import pg from 'pg';
 
 const app = express();
 const server = createServer(app);
+
 const io = new Server(server, {
   connectionStateRecovery: {}, 
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:5174/',
+    origin: process.env.CL_URL || 'http://localhost:5173', 
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -21,20 +23,29 @@ const pool = new pg.Pool({
   }
 });
 
-await pool.query(`
-  CREATE TABLE IF NOT EXISTS messages (
-      id SERIAL PRIMARY KEY,
-      client_offset TEXT UNIQUE,
-      content TEXT
-  );
-`);
+async function initDB() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS messages (
+          id SERIAL PRIMARY KEY,
+          client_offset TEXT UNIQUE,
+          content TEXT
+      );
+    `);
+    console.log('✅ Conexión exitosa: Tabla "messages" lista.');
+  } catch (error) {
+    console.error('❌ Error de conexión o al crear la tabla:', error.message);
+  }
+}
+
+initDB();
 
 app.get('/', (req, res) => {
   res.send('<h1>Chatify Server Online</h1>');
 });
 
 io.on('connection', async (socket) => {
-  console.log('Cliente conectado:', socket.id);
+  console.log('👤 Cliente conectado:', socket.id);
 
   if (!socket.recovered) {
     try {
@@ -47,7 +58,7 @@ io.on('connection', async (socket) => {
         socket.emit('chat message', row.content, row.id);
       }
     } catch (e) {
-      console.error('Error recuperando mensajes:', e);
+      console.error('❌ Error recuperando mensajes:', e);
     }
   }
   
@@ -59,16 +70,16 @@ io.on('connection', async (socket) => {
       );
       io.emit('chat message', msg, result.rows[0].id);
     } catch (e) {
-      console.error('Error insertando mensaje:', e);
+      console.error('❌ Error insertando mensaje:', e);
     }
   });
 
   socket.on('disconnect', () => {
-    console.log('Cliente desconectado');
+    console.log('👋 Cliente desconectado');
   });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor corriendo en el puerto ${PORT}`);
+  console.log(`🚀 Servidor Chatify corriendo en: http://localhost:${PORT}`);
 });
